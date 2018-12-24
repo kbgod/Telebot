@@ -244,9 +244,9 @@ class Message extends Base
         return $this->__data->migrate_from_chat_id ?? null;
     }
 
-    public function pinnedMessage() : ?int
+    public function pinnedMessage() : ?Message
     {
-        return $this->__data->pinned_message ?? null;
+        return isset($this->__data->pinned_message) ? new Message($this->__data->pinned_message) : null;
     }
 
     public function invoice() : ?Invoice

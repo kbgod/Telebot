@@ -92,7 +92,7 @@ class API
         }
     }
 
-    public function callMethod($method, $fields, $headers = [], $json = true)
+    public function callMethod($method, $fields = [], $headers = [], $json = true)
     {
         if ($this->settings['run_type'] == 1 AND !$this->settings['debug_mode'] AND $this->settings['hook_reply'] AND !$this->webhookreply_used AND !in_array($method, $this->WH_BL)) {
             $this->webhookreply_used = true;
