@@ -2,8 +2,7 @@
 
 namespace Telebot\Core;
 
-use Telebot\Addons\Control;
-use Telebot\Addons\Keyboard;
+use Telebot\Interfaces\UserInterface;
 
 class Context
 {
@@ -67,17 +66,17 @@ class Context
         $this->initUpdateType($this->update);
     }
 
-    public function setUserControl(Control $control)
+    public function setUserControl(UserInterface $control)
     {
         $this->__user = $control;
     }
 
     public function usedControl()
     {
-        return ($this->__user instanceof Control) ? true : false;
+        return ($this->__user instanceof UserInterface) ? true : false;
     }
 
-    public function user(): Control
+    public function user(): UserInterface
     {
         return $this->__user;
     }

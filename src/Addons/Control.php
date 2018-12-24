@@ -4,8 +4,9 @@ namespace Telebot\Addons;
 
 use Telebot\Core\Context;
 use RedBeanPHP\R;
+use Telebot\Interfaces\UserInterface;
 
-class Control
+class Control implements UserInterface
 {
     private $__user;
     private $__storage;

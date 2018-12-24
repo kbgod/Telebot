@@ -26,6 +26,8 @@ class Bot
     public $updateHandlers = [];
     public $actionHandlers = [];
 
+    private $loopHandler;
+
     private $handlers = [];
     private $scenes = [];
     /**
@@ -73,6 +75,11 @@ class Bot
         return $this->ctx;
     }
 
+    public function loop($loopHandler)
+    {
+        $this->loopHandler = $loopHandler;
+    }
+
     public function run()
     {
         switch ($this->api->settings['run_type']) {
@@ -104,8 +111,9 @@ class Bot
     {
         if(!isset($update->update_id)) return;
         $this->ctx = new Context($update, $this->api, $this->scenes);
-        if(!R::testConnection()) R::setup( $this->api->settings['redbean_dsn'], $this->api->settings['redbean_user'], $this->api->settings['redbean_password']);
-        R::freeze(true);
+        /*if(!R::testConnection()) R::setup( $this->api->settings['redbean_dsn'], $this->api->settings['redbean_user'], $this->api->settings['redbean_password']);
+        R::freeze(true);*/
+        ($this->loopHandler)($update);
         if($this->api->settings['timing']) {
             $this->api->trace('#');
             $this->api->trace('#Update: ' . $update->update_id);
