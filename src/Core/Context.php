@@ -83,12 +83,12 @@ class Context
 
     public function getState()
     {
-        return $this->__user->state;
+        return $this->user()->getState();
     }
 
     public function setState($state)
     {
-        $this->__user->state = $state;
+        $this->user()->setState($state);
         return $this;
     }
 

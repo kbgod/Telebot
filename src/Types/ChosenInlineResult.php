@@ -1,10 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Bogdan
- * Date: 24.12.2018
- * Time: 15:39
- */
 
 namespace Telebot\Types;
 
