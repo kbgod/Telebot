@@ -1,0 +1,21 @@
+{
+    "name": "mnkv/telebot",
+    "description": "Telebot Framework",
+    "type": "library",
+    "license": "custom",
+    "authors": [
+        {
+            "name": "Askold Monarkhov",
+            "email": "askold.monarkhov@gmail.com"
+        }
+    ],
+    "require": {
+        "gabordemooij/redbean": "dev-master"
+    },
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {
+            "Telebot\\": "src"
+        }
+    }
+}
