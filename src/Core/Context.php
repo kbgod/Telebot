@@ -3,11 +3,21 @@
 namespace Telebot\Core;
 
 use Telebot\Interfaces\UserInterface;
+use Telebot\Types\CallbackQuery;
+use Telebot\Types\Chat;
+use Telebot\Types\ChosenInlineResult;
+use Telebot\Types\InlineQuery;
+use Telebot\Types\Message;
+use Telebot\Types\PreCheckoutQuery;
+use Telebot\Types\ShippingQuery;
+use Telebot\Types\Sticker;
+use Telebot\Types\Update;
+use Telebot\Types\User;
 
 class Context
 {
 
-    public $updateTypes = [
+    /*public $updateTypes = [
         'callback_query',
         'channel_post',
         'chosen_inline_result',
@@ -17,9 +27,9 @@ class Context
         'shipping_query',
         'pre_checkout_query',
         'message'
-    ];
+    ];*/
 
-    public $messageSubTypes = [
+    /*public $messageSubTypes = [
         'voice',
         'video_note',
         'video',
@@ -48,7 +58,7 @@ class Context
         'audio',
         'connected_website',
         'passport_data'
-    ];
+    ];*/
 
     public $updateType;
     public $updateSubType;
@@ -58,12 +68,12 @@ class Context
     public $params;
     private $scenes;
 
-    public function __construct($update, API $api, $scenes)
+    public function __construct(Update $update, API $api, $scenes)
     {
         $this->update = $update;
         $this->api = $api;
         $this->scenes = $scenes;
-        $this->initUpdateType($this->update);
+        //$this->initUpdateType($this->update);
     }
 
     public function setUserControl(UserInterface $control)
@@ -107,7 +117,7 @@ class Context
         $this->setState('');
     }
 
-    public function initUpdateType($update)
+    /*public function initUpdateType(Update $update)
     {
         foreach ($this->updateTypes as $updateType) {
             if (isset($update->$updateType)) {
@@ -120,91 +130,96 @@ class Context
                 if (!isset($update->$updateType->$messageSubType)) unset($this->messageSubTypes[$key]);
             }
         } else $this->messageSubTypes = [];
-    }
+    }*/
 
 
     // Обёртка
 
-    public function getMessage()
+    public function getMessage() : ?Message
     {
-        if (isset($this->update->message)) return $this->update->message;
-        elseif (isset($this->update->edited_message)) return $this->update->edited_message;
-        elseif (isset($this->update->callback_query) AND $this->update->callback_query->message) return $this->update->callback_query->message;
-        elseif (isset($this->update->channel_post)) return $this->update->channel_post;
-        elseif (isset($this->update->edited_channel_post)) return $this->update->edited_channel_post;
-        else return false;
+        if($this->update->exists('message')) return $this->update->message();
+        elseif ($this->update->exists('edited_message')) return $this->update->editedMessage();
+        elseif (
+            $this->update->exists('callback_query') and
+            $this->update->callbackQuery()->exists('message')
+        ) return $this->update->callbackQuery()->message();
+        elseif ($this->update->exists('channel_post')) $this->update->channelPost();
+        elseif ($this->update->exists('edited_channel_post')) $this->update->editedChannelPost();
+        else return null;
     }
 
-    public function getFrom()
+    public function getFrom() : ?User
     {
-        if (isset($this->update->message)) return $this->update->message->from;
-        elseif (isset($this->update->edited_message)) return $this->update->edited_message->from;
-        elseif (isset($this->update->callback_query)) return $this->update->callback_query->from;
-        elseif (isset($this->update->inline_query)) return $this->update->inline_query->from;
-        elseif (isset($this->update->channel_post)) return $this->update->channel_post->from;
-        elseif (isset($this->update->edited_channel_post)) return $this->update->edited_channel_post->from;
-        elseif (isset($this->update->shipping_query)) return $this->update->shipping_query->from;
-        elseif (isset($this->update->pre_checkout_query)) return $this->update->pre_checkout_query->from;
-        elseif (isset($this->update->chosen_inline_result)) return $this->update->chosen_inline_result->from;
-        else return false;
+        if ($this->update->exists('message')) return $this->update->message()->from();
+        elseif ($this->update->exists('edited_message'))        return $this->update->editedMessage()->from();
+        elseif ($this->update->exists('callback_query'))        return $this->update->callbackQuery()->from();
+        elseif ($this->update->exists('inline_query'))          return $this->update->inlineQuery()->from();
+        elseif ($this->update->exists('channel_post'))          return $this->update->channelPost()->from();
+        elseif ($this->update->exists('edited_channel_post'))   return $this->update->editedChannelPost()->from();
+        elseif ($this->update->exists('shipping_query'))        return $this->update->shippingQuery()->from();
+        elseif ($this->update->exists('pre_checkout_query'))    return $this->update->preCheckoutQuery()->from();
+        elseif ($this->update->exists('chosen_inline_result'))  return $this->update->chosenInlineResult()->from();
+        else return null;
     }
 
-    public function getChat()
+    public function getChat() : ?Chat
     {
-        return !$this->getMessage() ? false : $this->getMessage()->chat;
+        return $this->getMessage()->chat() ?? null;
     }
 
     public function getText(): string
     {
-        return !$this->getMessage() ? false : $this->getMessage()->text;
+        return $this->getMessage()->text() ?? null;
     }
 
     public function getLowerCaseText(): string
     {
-        return !$this->getMessage() ? false : mb_strtolower($this->getMessage()->text);
+        return mb_strtolower($this->getText());
+    }
+
+    public function getSticker(): ?Sticker
+    {
+        return !is_null($this->getMessage()) ? ($this->getMessage()->exists('sticker') ? $this->getMessage()->sticker() : null) : null;
     }
 
     public function getChatID(): int
     {
-        return !$this->getChat()->id ? false : $this->getChat()->id;
+        return $this->getChat()->id();
     }
 
     public function getMessageID(): int
     {
-        return !$this->getMessage()->message_id ? false : $this->getMessage()->message_id;
+        return $this->getMessage()->messageId();
     }
 
     public function getCallbackID(): int
     {
-        return !$this->callbackQuery()->id ? false : $this->callbackQuery()->id;
+        return $this->callbackQuery()->id();
     }
 
     public function getUserID(): int
     {
-        return !$this->getFrom()->id ? false : $this->getFrom()->id;
+        return $this->getFrom()->id();
     }
 
     public function getUsername(): string
     {
-        return !$this->getFrom()->username ? false : $this->getFrom()->username;
+        return $this->getFrom()->username();
     }
 
-    public function getFromIsBot()
+    public function getFromIsBot() : bool
     {
-        return !$this->getFrom()->is_bot ? false : $this->getFrom()->is_bot;
+        return $this->getFrom()->isBot();
     }
 
-    /**
-     * @return string
-     */
     public function getFirstName(): string
     {
-        return !$this->getFrom()->first_name ? false : $this->getFrom()->first_name;
+        return $this->getFrom()->firstName();
     }
 
     public function getLastName(): string
     {
-        return !$this->getFrom()->last_name ? false : $this->getFrom()->last_name;
+        return $this->getFrom()->lastName();
     }
 
     public function getFullName(): string
@@ -214,57 +229,57 @@ class Context
 
     public function getLangCode(): string
     {
-        return !$this->getFrom()->language_code ? false : $this->getFrom()->language_code;
+        return $this->getFrom()->languageCode();
     }
 
     public function getInlineQueryID(): string
     {
-        return !$this->inlineQuery()->id ? false : $this->inlineQuery()->id;
+        return $this->inlineQuery()->id();
     }
 
     public function getInlineMessID()
     {
-        return !$this->chosenInlineResult()->inline_message_id ? false : $this->chosenInlineResult()->inline_message_id;
+        return $this->chosenInlineResult()->inlineMessageId();
     }
 
-    public function editedMessage()
+    public function editedMessage() : ?Message
     {
-        return $this->update->edited_message;
+        return $this->update->editedMessage();
     }
 
-    public function inlineQuery()
+    public function inlineQuery() : ?InlineQuery
     {
-        return $this->update->inline_query;
+        return $this->update->inlineQuery();
     }
 
-    public function shippingQuery()
+    public function shippingQuery() : ?ShippingQuery
     {
-        return $this->update->shipping_query;
+        return $this->update->shippingQuery();
     }
 
-    public function preCheckoutQuery()
+    public function preCheckoutQuery() : ?PreCheckoutQuery
     {
-        return $this->update->pre_checkout_query;
+        return $this->update->preCheckoutQuery();
     }
 
-    public function chosenInlineResult()
+    public function chosenInlineResult() : ?ChosenInlineResult
     {
-        return $this->update->chosen_inline_result;
+        return $this->update->chosenInlineResult();
     }
 
-    public function channelPost()
+    public function channelPost() : ?Message
     {
-        return $this->update->channel_post;
+        return $this->update->channelPost();
     }
 
-    public function editedChannelPost()
+    public function editedChannelPost() : ?Message
     {
-        return $this->update->edited_channel_post;
+        return $this->update->editedChannelPost();
     }
 
-    public function callbackQuery()
+    public function callbackQuery() : ?CallbackQuery
     {
-        return $this->update->callback_query;
+        return $this->update->callbackQuery();
     }
 
 

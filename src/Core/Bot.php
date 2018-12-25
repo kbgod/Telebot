@@ -7,8 +7,9 @@ use Telebot\Addons\Scene,
     Telebot\Addons\Functions;
 
 use RedBeanPHP\R;
+use Telebot\Types\Update;
 
-class Bot
+class Bot extends Eventer
 {
 
     const RUN_AS_POLL = 0;
@@ -20,50 +21,12 @@ class Bot
      */
     public $ctx;
 
-    public $commandHandlers = [];
-    public $textHandlers = [];
-    public $messageHandlers = [];
-    public $updateHandlers = [];
-    public $actionHandlers = [];
-
     private $loopHandler;
 
-    private $handlers = [];
+    protected $handlers = [];
     private $scenes = [];
-    /**
-     * 'sceneKey' => [
-     * 'enterHandler' => $func,
-     * 'handlers' => array [$func],
-     * 'leaveHandler' => $func,
-     */
 
     public $addons = [];
-
-    private $customParams = [ // Для onText
-        '{INT}' => '([\d]+)',
-        '{STR}' => '([\w]+)',
-        '{NUM}' => '([\d])',
-        '{SYM}' => '([\w])',
-        '{ENG}' => '([A-Za-z]+)',
-        '{ENG_S}' => '([A-Za-z\s]+)',
-        '{RUS}' => '([А-Яа-яёЁ]+)',
-        '{RUS_S}' => '([А-Яа-яёЁ\s]+)',
-        '{UKR}' => '([А-Яа-яЇїІіЄєҐґ]+)',
-        '{UKR_S}' => '([А-Яа-яЇїІіЄєҐґ\s]+)',
-    ];
-
-    private $customTypes = [
-        'int' => '[\d]+',
-        'num' => '[\d]',
-        'str' => '[\w]+',
-        'chr' => '[\w]',
-        'eng' => '[A-Za-z]+',
-        'eng_s' => '[A-Za-z\s]+',
-        'rus' => '[А-Яа-яёЁ]+',
-        'rus_s' => '[А-Яа-яёЁ\s]+',
-        'ukr' => '[А-Яа-яЇїІіЄєҐґ]+',
-        'ukr_s' => '[А-Яа-яЇїІіЄєҐґ\s]+'
-    ];
 
     public function __construct($settings)
     {
@@ -110,10 +73,10 @@ class Bot
     public function processUpdate($update)
     {
         if(!isset($update->update_id)) return;
-        $this->ctx = new Context($update, $this->api, $this->scenes);
+        $this->ctx = new Context(new Update($update), $this->api, $this->scenes);
         /*if(!R::testConnection()) R::setup( $this->api->settings['redbean_dsn'], $this->api->settings['redbean_user'], $this->api->settings['redbean_password']);
         R::freeze(true);*/
-        ($this->loopHandler)($update);
+        if(is_callable($this->loopHandler)) ($this->loopHandler)($update);
         if($this->api->settings['timing']) {
             $this->api->trace('#');
             $this->api->trace('#Update: ' . $update->update_id);
@@ -127,7 +90,6 @@ class Bot
                     foreach ($handlers as $handler) {
                         if ($handler($this->ctx) === true) break;
                     }
-                    R::close();
                     return;
                 }
             }
@@ -140,24 +102,11 @@ class Bot
                 }
             }
         }
-        R::close();
         if($this->api->settings['timing']) {
             $this->api->trace('#Время затраченное на обработку событий: ' . Functions::ctime('handlers'));
             $this->api->trace('#Всего: ' . Functions::ctime('update'));
             $this->api->trace('#');
         }
-    }
-
-
-    private function parseCommands($message)
-    {
-        $commands = [];
-        foreach ($message->entities as $entity) {
-            if ($entity->type == 'bot_command') {
-                $commands[] = mb_substr($message->text, $entity->offset, $entity->length);
-            }
-        }
-        return $commands;
     }
 
     private function loadAddons()
@@ -169,124 +118,6 @@ class Bot
         }
         $this->ctx = $ctx;
         return true;
-    }
-
-    private function initParams($param)
-    {
-        preg_match_all("{([A-Za-z_]+:[A-Za-z_]+)}", $param, $matches);
-        $matches = $matches[0];
-        foreach ($matches as $preset) {
-            list($key, $type) = explode(':', $preset);
-            $param = str_replace('{' . $preset . '}', '(?<' . $key . '>' . $this->customTypes[$type] . ')', $param);
-        }
-        return str_replace(array_flip($this->customParams), $this->customParams, $param);
-    }
-
-    private function parseParams($matches)
-    {
-        $output = [];
-        foreach ($matches as $k => $match) {
-            if (is_string($k)) $output[$k] = $match;
-        }
-        return $output;
-    }
-
-    /**
-     * @param $func
-     */
-    public function addHandler($func)
-    {
-            $this->handlers[] = $func;
-    }
-
-    public function txt($text, $func, $regex = false, $anyCase = true)
-    {
-        $case = $anyCase ? 'i' : '';
-        $text = !$regex ? '#^' . $this->initParams($text) . '$#u' . $case : $text;
-        $this->addHandler(function (Context $ctx) use ($text, $func) {
-            if (!isset($ctx->update->message->text)) return false;
-            if (preg_match($text, $ctx->update->message->text, $matches)) {
-                $ctx->params = $this->parseParams($matches);
-                $func($ctx, $matches);
-                return true;
-            }
-            return false;
-        });
-    }
-
-    public function cmd($command, $func)
-    {
-        $this->addHandler(function (Context $ctx) use ($command, $func) {
-            if (!isset($ctx->update->message->entities)) return false;
-            $commands = $this->parseCommands($ctx->update->message);
-            if (count($commands) == 0) return false;
-            foreach ($commands as $cmd) {
-                if ('/' . $command == $cmd) {
-                    $func($ctx);
-                    return true;
-                }
-            }
-            return false;
-        });
-    }
-
-    public function hears($text, $func)
-    {
-        if (is_array($text)) {
-            foreach ($text as $string) {
-                $this->txt("/$string/iu", $func, true);
-            }
-        } else $this->txt("/$text/iu", $func, true);
-    }
-
-    public function onMessage($field, $func)
-    {
-        $this->addHandler(function (Context $ctx) use ($field, $func) {
-            if (isset($ctx->update->message->$field)) {
-                $func($ctx);
-                return true;
-            }
-            return false;
-        });
-    }
-
-    public function onUpdate($field, $func)
-    {
-        $this->addHandler(function (Context $ctx) use ($field, $func) {
-            if (isset($ctx->update->$field)) {
-                $func($ctx);
-                return true;
-            }
-            return false;
-        });
-    }
-
-    public function act($act, $func, $regex = false, $anyCase = true)
-    {
-        $case = $anyCase ? 'i' : '';
-        $act = !$regex ? '#^' . $this->initParams($act) . '$#u' . $case : $act;
-        $this->addHandler(function (Context $ctx) use ($act, $func) {
-            if (preg_match($act, $ctx->callbackQuery()->data, $matches)) {
-                $ctx->params = $this->parseParams($matches);
-                $func($ctx, $matches);
-                return true;
-            }
-            return false;
-        });
-    }
-
-    public function inlQuery($query, $func, $regex = false, $anyCase = true)
-    {
-        $case = $anyCase ? 'i' : '';
-        $query = !$regex ? '#^' . $this->initParams($query) . '$#u' . $case : $query;
-        $this->addHandler(function(Context $ctx) use ($query, $func) {
-            if (preg_match($query, $ctx->inlineQuery()->query, $matches)) {
-                $ctx->params = $this->parseParams($matches);
-                $func($ctx, $matches);
-                return true;
-            }
-            return false;
-        });
     }
 
     public function addScene(Scene $scene)
@@ -303,7 +134,7 @@ class Bot
     }
 
     public function usage($func)
-    { // Добавление промежуточных функций
+    {
         $this->addons[] = $func;
     }
 

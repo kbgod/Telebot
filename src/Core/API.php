@@ -150,11 +150,11 @@ class API
     public function trace($msg, $onlyDebug = false)
     {
         if ($this->settings['debug_mode']) {
-            if (substr(PHP_OS, 0, 3) == 'WIN') {
+            if (substr(PHP_OS, 0, 3) == 'WIN' and false == true) {
                 if (!is_string($msg)) {
                     $text = unserialize(iconv('UTF-8', 'CP866', serialize($msg)));
                 } else $text = iconv('UTF-8', 'CP866', $msg);
-            }
+            } else $text = $msg;
             print_r($text);
             print_r(PHP_EOL);
 
