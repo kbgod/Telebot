@@ -28,7 +28,7 @@ $bot->loop(function($update) {
     //var_dump($update);
 });
 $bot->onMessage('sticker', function (Context $ctx){
-    $ctx->reply('ID: '.$ctx->getSticker()->fileId(), '', true);
+    $ctx->reply('Nice:)');
 });
 
 $bot->run();
