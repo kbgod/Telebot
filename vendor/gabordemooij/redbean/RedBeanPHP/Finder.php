@@ -44,6 +44,90 @@ class Finder
 	}
 
 	/**
+	 * A custom record-to-bean mapping function for findMulti.
+	 *
+	 * Usage:
+	 *
+	 * <code>
+	 * $collection = R::findMulti( 'shop,product,price',
+	 * 'SELECT shop.*, product.*, price.* FROM shop
+	 *	LEFT JOIN product ON product.shop_id = shop.id
+	 *	LEFT JOIN price ON price.product_id = product.id', [], [
+	 *		Finder::map( 'shop', 'product' ),
+	 *		Finder::map( 'product', 'price' ),
+	 *	]);
+	 * </code>
+	 *
+	 * @param string $parentName name of the parent bean
+	 * @param string $childName  name of the child bean
+	 *
+	 * @return array
+	 */
+	public static function map($parentName,$childName) {
+		return array(
+			'a' => $parentName,
+			'b' => $childName,
+			'matcher' => function( $parent, $child ) use ( $parentName, $childName ) {
+				$propertyName = 'own' . ucfirst( $childName );
+				if (!isset($parent[$propertyName])) {
+					$parent[$propertyName] = array();
+				}
+				$property = "{$parentName}ID";
+				return ( $child->$property == $parent->id );
+			},
+			'do' => function( $parent, $child ) use ( $childName ) {
+				$list = 'own'.ucfirst( $childName ).'List';
+				$parent->noLoad()->{$list}[] = $child;
+			}
+		);
+	}
+
+	/**
+	* A custom record-to-bean mapping function for findMulti.
+	*
+	* Usage:
+	*
+	* <code>
+	* $collection = R::findMulti( 'book,book_tag,tag',
+	* 'SELECT book.*, book_tag.*, tag.* FROM book
+	*      LEFT JOIN book_tag ON book_tag.book_id = book.id
+	*      LEFT JOIN tag ON book_tag.tag_id = tag.id', [], [
+	*              Finder::nmMap( 'book', 'tag' ),
+	*      ]);
+	* </code>
+	*
+	* @param string $parentName name of the parent bean
+	* @param string $childName  name of the child bean
+	*
+	* @return array
+	*/
+	public static function nmMap( $parentName, $childName )
+	{
+		$types = array($parentName, $childName);
+		sort( $types );
+		$link = implode( '_', $types );
+		return array(
+			'a' => $parentName,
+			'b' => $childName,
+			'matcher' => function( $parent, $child, $beans ) use ( $parentName, $childName, $link ) {
+				$propertyName = 'shared' . ucfirst( $childName );
+				if (!isset($parent[$propertyName])) {
+					$parent[$propertyName] = array();
+				}
+				foreach( $beans[$link] as $linkBean ) {
+					if ( $linkBean["{$parentName}ID"] == $parent->id && $linkBean["{$childName}ID"] == $child->id ) {
+						return true;
+					}
+				}
+			},
+			'do' => function( $parent, $child ) use ( $childName ) {
+				$list = 'shared'.ucfirst( $childName ).'List';
+				$parent->noLoad()->{$list}[] = $child;
+			}
+		);
+	}
+
+	/**
 	 * Finds a bean using a type and a where clause (SQL).
 	 * As with most Query tools in RedBean you can provide values to
 	 * be inserted in the SQL statement by populating the value
@@ -307,63 +391,70 @@ class Finder
 	 * @note instead of an SQL query you can pass a result array as well.
 	 *
 	 * @param string|array $types         a list of types (either array or comma separated string)
-	 * @param string|array $sql           an SQL query or an array of prefetched records
+	 * @param string|array $sql           optional, an SQL query or an array of prefetched records
 	 * @param array        $bindings      optional, bindings for SQL query
 	 * @param array        $remappings    optional, an array of remapping arrays
 	 * @param string       $queryTemplate optional, query template
 	 *
 	 * @return array
 	 */
-	public function findMulti( $types, $sql, $bindings = array(), $remappings = array(), $queryTemplate = ' %s.%s AS %s__%s' )
+	public function findMulti( $types, $sql = NULL, $bindings = array(), $remappings = array(), $queryTemplate = ' %s.%s AS %s__%s' )
 	{
-		if ( !is_array( $types ) ) $types = explode( ',', $types );
-		if ( !is_array( $sql ) ) {
-			$writer = $this->toolbox->getWriter();
-			$adapter = $this->toolbox->getDatabaseAdapter();
-
-			//Repair the query, replace book.* with book.id AS book_id etc..
-			foreach( $types as $type ) {
-				$pattern = " {$type}.*";
-				if ( strpos( $sql, $pattern ) !== FALSE ) {
-					$newSelectorArray = array();
-					$columns = $writer->getColumns( $type );
-					foreach( $columns as $column => $definition ) {
-						$newSelectorArray[] = sprintf( $queryTemplate, $type, $column, $type, $column );
-					}
-					$newSelector = implode( ',', $newSelectorArray );
-					$sql = str_replace( $pattern, $newSelector, $sql );
-				}
-			}
-
-			$rows = $adapter->get( $sql, $bindings );
+		if ( !is_array( $types ) ) $types = array_map( 'trim', explode( ',', $types ) );
+		if ( is_null( $sql ) ) {
+			$beans = array();
+			foreach( $types as $type ) $beans[$type] = $this->redbean->find( $type );
 		} else {
-			$rows = $sql;
-		}
+			if ( !is_array( $sql ) ) {
+				$writer = $this->toolbox->getWriter();
+				$adapter = $this->toolbox->getDatabaseAdapter();
 
-		//Gather the bean data from the query results using the prefix
-		$wannaBeans = array();
-		foreach( $types as $type ) {
-			$wannaBeans[$type] = array();
-			$prefix            = "{$type}__";
-			foreach( $rows as $rowkey=>$row ) {
-				$wannaBean = array();
-				foreach( $row as $cell => $value ) {
-					if ( strpos( $cell, $prefix ) === 0 ) {
-						$property = substr( $cell, strlen( $prefix ) );
-						unset( $rows[$rowkey][$cell] );
-						$wannaBean[$property] = $value;
+				//Repair the query, replace book.* with book.id AS book_id etc..
+				foreach( $types as $type ) {
+					$regex = "#( (`?{$type}`?)\.\*)#";
+					if ( preg_match( $regex, $sql, $matches ) ) {
+						$pattern = $matches[1];
+						$table = $matches[2];
+						$newSelectorArray = array();
+						$columns = $writer->getColumns( $type );
+						foreach( $columns as $column => $definition ) {
+							$newSelectorArray[] = sprintf( $queryTemplate, $table, $column, $type, $column );
+						}
+						$newSelector = implode( ',', $newSelectorArray );
+						$sql = str_replace( $pattern, $newSelector, $sql );
 					}
 				}
-				if ( !isset( $wannaBean['id'] ) ) continue;
-				if ( is_null( $wannaBean['id'] ) ) continue;
-				$wannaBeans[$type][$wannaBean['id']] = $wannaBean;
-			}
-		}
 
-		//Turn the rows into beans
-		$beans = array();
-		foreach( $wannaBeans as $type => $wannabees ) {
-			$beans[$type] = $this->redbean->convertToBeans( $type, $wannabees );
+				$rows = $adapter->get( $sql, $bindings );
+			} else {
+				$rows = $sql;
+			}
+
+			//Gather the bean data from the query results using the prefix
+			$wannaBeans = array();
+			foreach( $types as $type ) {
+				$wannaBeans[$type] = array();
+				$prefix            = "{$type}__";
+				foreach( $rows as $rowkey=>$row ) {
+					$wannaBean = array();
+					foreach( $row as $cell => $value ) {
+						if ( strpos( $cell, $prefix ) === 0 ) {
+							$property = substr( $cell, strlen( $prefix ) );
+							unset( $rows[$rowkey][$cell] );
+							$wannaBean[$property] = $value;
+						}
+					}
+					if ( !isset( $wannaBean['id'] ) ) continue;
+					if ( is_null( $wannaBean['id'] ) ) continue;
+					$wannaBeans[$type][$wannaBean['id']] = $wannaBean;
+				}
+			}
+
+			//Turn the rows into beans
+			$beans = array();
+			foreach( $wannaBeans as $type => $wannabees ) {
+				$beans[$type] = $this->redbean->convertToBeans( $type, $wannabees );
+			}
 		}
 
 		//Apply additional re-mappings

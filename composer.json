@@ -1,8 +1,9 @@
 {
-    "name": "monarkhov/telebot",
+    "name": "monarkhov/Telebot",
     "description": "Telebot Framework",
     "type": "library",
     "license": "custom",
+    "keywords": ["telegram", "telebot", "bot", "PHP", "video", "stickers", "audio", "files"],
     "authors": [
         {
             "name": "Askold Monarkhov",
@@ -10,6 +11,7 @@
         }
     ],
     "require": {
+        "php": ">=7.1.0",
         "gabordemooij/redbean": "dev-master"
     },
     "minimum-stability": "stable",
