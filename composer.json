@@ -2,7 +2,8 @@
     "name": "monarkhov/Telebot",
     "description": "Telebot Framework",
     "type": "library",
-    "license": "custom",
+    "license": "MIT",
+    "version": "2.0.4",
     "keywords": ["telegram", "telebot", "bot", "PHP", "video", "stickers", "audio", "files"],
     "authors": [
         {
