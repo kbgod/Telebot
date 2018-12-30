@@ -73,7 +73,6 @@ class Context
         $this->update = $update;
         $this->api = $api;
         $this->scenes = $scenes;
-        //$this->initUpdateType($this->update);
     }
 
     public function setUserControl(UserInterface $control)
@@ -116,24 +115,6 @@ class Context
         if (is_callable($this->scenes[$this->getState()]['leave'])) $this->scenes[$this->getState()]['leave']($this);
         $this->setState('');
     }
-
-    /*public function initUpdateType(Update $update)
-    {
-        foreach ($this->updateTypes as $updateType) {
-            if (isset($update->$updateType)) {
-                $this->updateType = $updateType;
-                break;
-            }
-        }
-        if ($this->updateType == 'message' or $this->updateType == 'channel_post') {
-            foreach ($this->messageSubTypes as $key => $messageSubType) {
-                if (!isset($update->$updateType->$messageSubType)) unset($this->messageSubTypes[$key]);
-            }
-        } else $this->messageSubTypes = [];
-    }*/
-
-
-    // Обёртка
 
     public function getMessage() : ?Message
     {

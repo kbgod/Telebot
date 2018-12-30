@@ -54,9 +54,11 @@ abstract class Eventer
     protected function parseCommands(Message $message)
     {
         $commands = [];
-        foreach ($message->entities() as $entity) {
-            if ($entity->type() == 'bot_command') {
-                $commands[] = mb_substr($message->text(), $entity->offset(), $entity->length());
+        if($message->exists('entities')) {
+            foreach ($message->entities() as $entity) {
+                if ($entity->type() == 'bot_command') {
+                    $commands[] = mb_substr($message->text(), $entity->offset(), $entity->length());
+                }
             }
         }
         return $commands;
