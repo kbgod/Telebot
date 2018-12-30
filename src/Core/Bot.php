@@ -74,8 +74,6 @@ class Bot extends Eventer
     {
         if(!isset($update->update_id)) return;
         $this->ctx = new Context(new Update($update), $this->api, $this->scenes);
-        /*if(!R::testConnection()) R::setup( $this->api->settings['redbean_dsn'], $this->api->settings['redbean_user'], $this->api->settings['redbean_password']);
-        R::freeze(true);*/
         if(is_callable($this->loopHandler)) ($this->loopHandler)(new Update($update));
         if($this->api->settings['timing']) {
             $this->api->trace('#');
@@ -114,7 +112,10 @@ class Bot extends Eventer
         $ctx = $this->ctx;
         foreach ($this->addons as $addon) {
             $ctx = $addon($ctx);
-            if (!$ctx) return false;
+            if (!$ctx) {
+                $this->api->trace('#[WARNING] Usage not returned the Context.');
+                return false;
+            }
         }
         $this->ctx = $ctx;
         return true;
