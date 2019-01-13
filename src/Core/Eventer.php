@@ -9,8 +9,10 @@ abstract class Eventer
 {
     protected $customParams = [
         '{INT}' => '([\d]+)',
-        '{STR}' => '([\w]+)',
         '{NUM}' => '([\d])',
+        '{STR}' => '([\w]+)',
+        '{STR_S}' => '([\w\s]+)',
+        '{ANY}' => '(.*?)',
         '{SYM}' => '([\w])',
         '{ENG}' => '([A-Za-z]+)',
         '{ENG_S}' => '([A-Za-z\s]+)',
@@ -24,6 +26,8 @@ abstract class Eventer
         'int' => '[\d]+',
         'num' => '[\d]',
         'str' => '[\w]+',
+        'str_s' => '[\w\s]+',
+        'any' => '(.*?)',
         'chr' => '[\w]',
         'eng' => '[A-Za-z]+',
         'eng_s' => '[A-Za-z\s]+',

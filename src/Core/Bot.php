@@ -38,6 +38,11 @@ class Bot extends Eventer
         return $this->ctx;
     }
 
+    public function api(): API
+    {
+        return $this->api;
+    }
+
     public function loop($loopHandler)
     {
         $this->loopHandler = $loopHandler;

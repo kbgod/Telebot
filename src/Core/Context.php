@@ -106,7 +106,7 @@ class Context
         $this->setState($sceneName);
         if (is_callable($this->scenes[$sceneName]['enter'])) $this->scenes[$sceneName]['enter']($this);
         else {
-
+            $this->api->trace('[WARNING] Scene "'.$sceneName.'" not found!');
         }
     }
 
