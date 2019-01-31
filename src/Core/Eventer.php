@@ -82,29 +82,31 @@ abstract class Eventer
         $case = $anyCase ? 'i' : '';
         $text = !$regex ? '#^' . $this->initParams($text) . '$#u' . $case : $text;
         $this->addHandler(function (Context $ctx) use ($text, $func) {
-            if (!$ctx->update->exists('message') and !$ctx->update->message()->exists('text')) return false;
-            if (preg_match($text, $ctx->getText(), $matches)) {
-                $ctx->params = $this->parseParams($matches);
-                $func($ctx, $matches);
-                return true;
+            if ($ctx->update->exists('message') and $ctx->update->message()->exists('text')) {
+                if (preg_match($text, $ctx->getText(), $matches)) {
+                    $ctx->params = $this->parseParams($matches);
+                    $func($ctx, $matches);
+                    return true;
+                }
+                return false;
             }
-            return false;
         });
     }
 
     public function cmd($command, $func)
     {
         $this->addHandler(function (Context $ctx) use ($command, $func) {
-            if (!$ctx->update->exists('message') and !$ctx->update->message()->exists('entities')) return false;
-            $commands = $this->parseCommands($ctx->update->message());
-            if (count($commands) == 0) return false;
-            foreach ($commands as $cmd) {
-                if ('/' . $command == $cmd) {
-                    $func($ctx);
-                    return true;
+            if ($ctx->update->exists('message') and $ctx->update->message()->exists('entities')) {
+                $commands = $this->parseCommands($ctx->update->message());
+                if (count($commands) == 0) return false;
+                foreach ($commands as $cmd) {
+                    if ('/' . $command == $cmd) {
+                        $func($ctx);
+                        return true;
+                    }
                 }
+                return false;
             }
-            return false;
         });
     }
 
