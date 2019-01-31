@@ -71,11 +71,11 @@ class Control implements UserInterface
      * @return string
      */
     public function getState() {
-        return $this->__user->state;
+        return $this->state;
     }
 
     public function setState($key) {
-        $this->__user->state = $key;
+        $this->state = $key;
     }
 
     public function saveStorage() {

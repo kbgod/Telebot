@@ -150,7 +150,7 @@ class Context
 
     public function getText(): string
     {
-        return $this->getMessage()->text() ?? null;
+        return $this->getMessage()->text() ?? '';
     }
 
     public function getLowerCaseText(): string
